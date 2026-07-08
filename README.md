@@ -24,7 +24,7 @@ The motion threshold is tunable in Settings. The default (3° on Mac, 0.06g on W
 
 ## What happens when it fires
 
-1. A full-screen lock takes over every display. Force Quit, app switching, and log-out are disabled. Warning beeps start.
+1. A full-screen lock takes over every display. On macOS it captures the displays outright, which disables Mission Control and the swipe-between-spaces gesture, so a thief sitting in a full-screen app can't slide past the lock. Force Quit, app switching, and log-out are disabled too. Warning beeps start.
 2. You get a grace period (15 seconds by default) to type your code. This is how you disarm your own machine when you come back to it.
 3. No code? Output gets forced to the built-in speakers, the volume is slammed to 100% and re-asserted every 150ms, and the siren starts. Volume keys do nothing. Plugging in headphones does nothing.
 4. The siren runs until the correct code is entered. The code is stored as a salted SHA-256 hash, never in plain text.

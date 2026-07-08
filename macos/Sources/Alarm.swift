@@ -22,6 +22,7 @@ final class AlarmController: NSObject {
     private var escMonitor: Any?
     private var sirenFlash = false
     private var isPreview = false
+    private var displaysCaptured = false
     private(set) var active = false
     var onDisarm: (() -> Void)?
 
@@ -55,6 +56,12 @@ final class AlarmController: NSObject {
             }
         }
         NSApp.setActivationPolicy(.regular)
+        if CGCaptureAllDisplays() == .success {
+            displaysCaptured = true
+            logLine(preview ? "displays captured (preview)" : "displays captured — space switching disabled")
+        } else {
+            logLine("WARNING: could not capture displays — full-screen apps may escape the lock via space switching")
+        }
         buildWindows(reason: reason, config: config)
         entryDeadline = Date().addingTimeInterval(Double(config?.entryDelaySeconds ?? 15))
         countdownTimer = Timer.scheduledTimer(withTimeInterval: 0.25, repeats: true) { [weak self] _ in
@@ -329,6 +336,10 @@ final class AlarmController: NSObject {
         }
         windows = []
         pinField = nil
+        if displaysCaptured {
+            CGReleaseAllDisplays()
+            displaysCaptured = false
+        }
         NSApp.presentationOptions = []
         NSApp.setActivationPolicy(.accessory)
         if !isPreview {
