@@ -18,6 +18,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
     private var readinessSudo: NSTextField!
     private var readinessInput: NSTextField!
     private var angleTimer: Timer?
+    private var sudoNotice: (message: String, until: Date)?
 
     private let exitChoices = [10, 30, 60, 120]
     private let entryChoices = [5, 10, 15, 30]
@@ -148,9 +149,13 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         stack.addArrangedSubview(readinessSudo)
         let sudoRow = NSStackView()
         sudoRow.orientation = .horizontal
-        let copySudoButton = NSButton(title: "Copy Terminal Command for Closed-Lid Protection",
+        let enableSudoButton = NSButton(title: "Enable Closed-Lid Protection…",
+                                        target: self, action: #selector(enableClosedLid))
+        enableSudoButton.keyEquivalent = ""
+        let copySudoButton = NSButton(title: "Copy Terminal Command Instead",
                                       target: self, action: #selector(copySudoCommand))
         sudoRow.addArrangedSubview(indent())
+        sudoRow.addArrangedSubview(enableSudoButton)
         sudoRow.addArrangedSubview(copySudoButton)
         stack.addArrangedSubview(sudoRow)
         readinessInput = NSTextField(labelWithString: "")
@@ -239,18 +244,35 @@ final class SettingsWindowController: NSObject, NSWindowDelegate {
         readinessLid.stringValue = watcher.lidSensor.available
             ? "✅ Lid-angle sensor detected"
             : "❌ No lid-angle sensor — motion trigger unavailable on this Mac"
-        readinessSudo.stringValue = sudoersReady()
-            ? "✅ Closed-lid protection ready"
-            : "❌ Closed-lid protection off — paste the command below into Terminal once"
+        if let notice = sudoNotice, Date() < notice.until {
+            readinessSudo.stringValue = notice.message
+        } else {
+            sudoNotice = nil
+            readinessSudo.stringValue = sudoersReady()
+                ? "✅ Closed-lid protection ready"
+                : "❌ Closed-lid protection off — click Enable below (asks for your password once)"
+        }
         readinessInput.stringValue = inputMonitoringGranted()
             ? "✅ Touch trigger permission granted"
             : "❌ Touch trigger needs Input Monitoring permission"
     }
 
+    @objc private func enableClosedLid() {
+        switch installSudoersRuleWithPrompt() {
+        case .installed, .cancelled:
+            sudoNotice = nil
+        case .failed(let message):
+            sudoNotice = ("❌ Could not enable: \(message)", Date().addingTimeInterval(10))
+        }
+        refreshReadiness()
+    }
+
     @objc private func copySudoCommand() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(sudoersCommand, forType: .string)
-        readinessSudo.stringValue = "📋 Copied — paste into Terminal, enter your password, then re-open Settings"
+        sudoNotice = ("📋 Copied — paste into Terminal, enter your password, then re-open Settings",
+                      Date().addingTimeInterval(8))
+        refreshReadiness()
     }
 
     @objc private func openInputMonitoring() {

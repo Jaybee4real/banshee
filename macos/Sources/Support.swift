@@ -156,11 +156,48 @@ func sudoersReady() -> Bool {
     runProcess("/usr/bin/sudo", ["-n", "-l", "/usr/bin/pmset", "disablesleep", "1"]) == 0
 }
 
+var sudoersRule: String {
+    "\(NSUserName()) ALL=(root) NOPASSWD: /usr/bin/pmset disablesleep 0, /usr/bin/pmset disablesleep 1\n"
+}
+
 var sudoersCommand: String {
-    let username = NSUserName()
-    return """
-    echo '\(username) ALL=(root) NOPASSWD: /usr/bin/pmset disablesleep 0, /usr/bin/pmset disablesleep 1' | sudo tee /etc/sudoers.d/banshee >/dev/null
+    """
+    echo '\(sudoersRule.trimmingCharacters(in: .newlines))' | sudo tee /etc/sudoers.d/banshee >/dev/null
     sudo chmod 440 /etc/sudoers.d/banshee
     sudo visudo -cf /etc/sudoers.d/banshee   # must print "parsed OK"; if not, sudo rm it immediately
     """
+}
+
+private func appleScriptEscaped(_ text: String) -> String {
+    text.replacingOccurrences(of: "\\", with: "\\\\")
+        .replacingOccurrences(of: "\"", with: "\\\"")
+}
+
+enum SudoersInstallResult {
+    case installed
+    case cancelled
+    case failed(String)
+}
+
+func installSudoersRuleWithPrompt() -> SudoersInstallResult {
+    let tempURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("banshee-sudoers-\(getpid())")
+    do {
+        try sudoersRule.write(to: tempURL, atomically: true, encoding: .utf8)
+    } catch {
+        return .failed("could not write temp file: \(error.localizedDescription)")
+    }
+    defer { try? FileManager.default.removeItem(at: tempURL) }
+    let shell = "/usr/sbin/visudo -cf '\(tempURL.path)' && /usr/bin/install -o root -g wheel -m 440 '\(tempURL.path)' /etc/sudoers.d/banshee"
+    let source = "do shell script \"\(appleScriptEscaped(shell))\" with administrator privileges"
+    var errorInfo: NSDictionary?
+    guard let script = NSAppleScript(source: source) else { return .failed("could not build script") }
+    script.executeAndReturnError(&errorInfo)
+    if let errorInfo {
+        let code = errorInfo[NSAppleScript.errorNumber] as? Int ?? 0
+        if code == -128 { return .cancelled }
+        let message = errorInfo[NSAppleScript.errorMessage] as? String ?? "unknown error"
+        return .failed(message)
+    }
+    return .installed
 }

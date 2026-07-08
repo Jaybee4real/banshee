@@ -43,7 +43,7 @@ xattr -dr com.apple.quarantine /Applications/Banshee.app
 
 Launch it, set your disarm code, and it lives in the menu bar. Then two one-time grants, both shown in Settings with a button each:
 
-1. **Closed-lid protection.** BANSHEE keeps the Mac awake while armed so the speakers stay live with the lid shut. That needs one `pmset` sudoers entry; Settings has a "copy the command" button, you paste it into Terminal once.
+1. **Closed-lid protection.** BANSHEE keeps the Mac awake while armed so the speakers stay live with the lid shut. That needs one `pmset` sudoers entry. Click "Enable Closed-Lid Protection" in Settings and enter your admin password in the macOS prompt; the rule is checked with `visudo -cf` before it's installed. Prefer to see exactly what runs? The "copy the command instead" button gives you the same thing for Terminal.
 2. **Touch trigger.** Add Banshee under System Settings → Privacy & Security → Input Monitoring.
 
 To make it start at login and respawn if killed:
