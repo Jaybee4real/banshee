@@ -124,11 +124,11 @@ public static class SirenAudio
         double phase = 0;
         return BuildWav(timeSeconds =>
         {
-            double sweep = 0.5 - 0.5 * Math.Cos(2 * Math.PI * timeSeconds / 1.3);
-            double frequency = 650 + (1500 - 650) * sweep;
+            double sweep = (timeSeconds / 0.45) % 1.0;
+            double frequency = 2000 + 1200 * sweep;
             phase += 2 * Math.PI * frequency / 44100;
-            return Math.Tanh(3.0 * Math.Sin(phase));
-        }, 2.6);
+            return Math.Tanh(12.0 * Math.Sin(phase));
+        }, 2.7);
     });
 
     public static void PlayBeeps()

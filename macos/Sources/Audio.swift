@@ -124,10 +124,10 @@ final class SirenSynth {
                 let timeSeconds = self.framesRendered / renderRate
                 var sample: Float = 0
                 if sirenMode {
-                    let sweep = 0.5 - 0.5 * cos(2.0 * Double.pi * timeSeconds / 1.3)
-                    let frequency = 650.0 + (1500.0 - 650.0) * sweep
+                    let sweep = (timeSeconds / 0.45).truncatingRemainder(dividingBy: 1.0)
+                    let frequency = 2000.0 + 1200.0 * sweep
                     self.phase += 2.0 * Double.pi * frequency / renderRate
-                    sample = Float(tanh(3.0 * sin(self.phase)))
+                    sample = Float(tanh(12.0 * sin(self.phase)))
                 } else {
                     let cyclePosition = timeSeconds.truncatingRemainder(dividingBy: 0.5)
                     if cyclePosition < 0.12 {
