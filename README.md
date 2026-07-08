@@ -62,6 +62,10 @@ Fire a drill from the menu (Test Siren) or with `banshell drill`. The real siren
 
 Everything lives in the Settings window: arm time, which triggers are active, motion sensitivity with a live sensor readout, the walk-away delay (so arming doesn't trap you at your own desk), the siren delay, the disarm code, and the owner card shown on the alarm screen. Changes save immediately.
 
+## Staying up to date
+
+BANSHELL updates itself. It checks GitHub Releases on launch and every few hours, and when a newer version is out it offers to install it: on macOS it downloads the pkg and runs it behind one admin prompt, on Windows it downloads and runs the installer silently, then relaunches. You can also trigger it any time from the menu (Check for Updates) or turn the automatic check off in Settings. There's no separate update server, the provider is this repo's releases, fetched over HTTPS, so only builds published here can be offered to you.
+
 ## What this can't do
 
 I'd rather you know the limits up front than find out from a thief.

@@ -2,7 +2,7 @@ import AppKit
 import Foundation
 
 let cliCommands: Set<String> = ["setpin", "arm", "disarm", "drill", "watch", "install",
-                                "uninstall", "status", "sensors", "version", "help", "preview"]
+                                "uninstall", "status", "sensors", "version", "help", "preview", "update"]
 
 let arguments = CommandLine.arguments
 if arguments.count > 1, cliCommands.contains(arguments[1]) {

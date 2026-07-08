@@ -1,6 +1,6 @@
 #define AppVersion GetEnv("BANSHELL_VERSION")
 #if AppVersion == ""
-  #define AppVersion "1.4.0"
+  #define AppVersion "1.5.0"
 #endif
 
 [Setup]
@@ -20,6 +20,8 @@ PrivilegesRequired=lowest
 ArchitecturesAllowed=x64
 ArchitecturesInstallIn64BitMode=x64
 WizardStyle=modern
+CloseApplications=yes
+RestartApplications=yes
 
 [Files]
 Source: "publish\*"; DestDir: "{app}"; Flags: recursesubdirs ignoreversion
@@ -33,4 +35,4 @@ Name: "{autostartup}\BANSHELL"; Filename: "{app}\Banshell.exe"; Tasks: startupic
 Name: "startupicon"; Description: "Start BANSHELL automatically when Windows starts"; GroupDescription: "Startup:"
 
 [Run]
-Filename: "{app}\Banshell.exe"; Description: "Launch BANSHELL now"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\Banshell.exe"; Description: "Launch BANSHELL now"; Flags: nowait postinstall

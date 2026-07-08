@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-let banshellVersion = "1.4.0"
+let banshellVersion = "1.5.0"
 let launchdLabel = "com.jaybee.banshell"
 
 struct Config: Codable {
@@ -19,6 +19,7 @@ struct Config: Codable {
     var ownerName: String?
     var ownerEmail: String?
     var ownerMessage: String?
+    var autoUpdateCheck: Bool?
 
     static var defaults: Config {
         Config(pinSaltHex: "", pinHashHex: "", armHour: 23, armMinute: 0,
@@ -171,7 +172,7 @@ var sudoersCommand: String {
     """
 }
 
-private func appleScriptEscaped(_ text: String) -> String {
+func appleScriptEscaped(_ text: String) -> String {
     text.replacingOccurrences(of: "\\", with: "\\\\")
         .replacingOccurrences(of: "\"", with: "\\\"")
 }

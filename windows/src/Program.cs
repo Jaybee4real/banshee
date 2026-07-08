@@ -41,6 +41,7 @@ public class TrayApp : ApplicationContext
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem("Settings…", null, (_, _) => ShowSettings()));
         menu.Items.Add(new ToolStripMenuItem("Test Siren (Drill)…", null, (_, _) => Drill()));
+        menu.Items.Add(new ToolStripMenuItem("Check for Updates…", null, async (_, _) => await Updater.CheckAsync(false)));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem("Quit BANSHELL", null, (_, _) => Quit()));
 
@@ -55,6 +56,26 @@ public class TrayApp : ApplicationContext
 
         RefreshMenu();
         if (!config.HasPin) ShowFirstRun();
+        ScheduleUpdateChecks();
+    }
+
+    private void ScheduleUpdateChecks()
+    {
+        if (!BanshellConfig.Load().AutoUpdateCheck) return;
+        var startupCheck = new System.Windows.Forms.Timer { Interval = 8000 };
+        startupCheck.Tick += async (_, _) =>
+        {
+            startupCheck.Stop();
+            startupCheck.Dispose();
+            if (BanshellConfig.Load().AutoUpdateCheck) await Updater.CheckAsync(true);
+        };
+        startupCheck.Start();
+        var periodic = new System.Windows.Forms.Timer { Interval = 6 * 60 * 60 * 1000 };
+        periodic.Tick += async (_, _) =>
+        {
+            if (BanshellConfig.Load().AutoUpdateCheck) await Updater.CheckAsync(true);
+        };
+        periodic.Start();
     }
 
     private void RefreshMenu()

@@ -28,6 +28,19 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         watcher = watcherInstance
         watcherInstance.start()
         refreshMenu(armed: watcherInstance.uiArmed, triggered: watcherInstance.uiTriggered)
+        scheduleUpdateChecks()
+    }
+
+    private func scheduleUpdateChecks() {
+        guard loadConfig()?.autoUpdateCheck != false else { return }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
+            Updater.shared.checkForUpdates(silent: true)
+        }
+        Timer.scheduledTimer(withTimeInterval: 6 * 3600, repeats: true) { _ in
+            if loadConfig()?.autoUpdateCheck != false {
+                Updater.shared.checkForUpdates(silent: true)
+            }
+        }
     }
 
     private func buildStatusItem() {
@@ -71,6 +84,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let logItem = NSMenuItem(title: "View Log", action: #selector(viewLog), keyEquivalent: "")
         logItem.target = self
         menu.addItem(logItem)
+
+        let updateItem = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
+        updateItem.target = self
+        menu.addItem(updateItem)
 
         menu.addItem(.separator())
 
@@ -164,6 +181,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     @objc private func viewLog() {
         NSWorkspace.shared.open(Paths.logFile)
+    }
+
+    @objc private func checkForUpdates() {
+        Updater.shared.checkForUpdates(silent: false)
     }
 
     @objc private func quitTapped() {

@@ -20,6 +20,7 @@ public class SettingsForm : Form
     private readonly TextBox ownerNameBox;
     private readonly TextBox ownerEmailBox;
     private readonly TextBox ownerMessageBox;
+    private readonly CheckBox autoUpdateBox;
     private readonly Label readinessLabel;
     private readonly System.Windows.Forms.Timer liveTimer;
 
@@ -123,6 +124,17 @@ public class SettingsForm : Form
             layout.Controls.Add(ownerBox);
         }
 
+        layout.Controls.Add(Section("UPDATES"));
+        autoUpdateBox = new CheckBox { Text = "Automatically check for updates", AutoSize = true };
+        autoUpdateBox.CheckedChanged += (_, _) => SaveFromControls();
+        layout.Controls.Add(autoUpdateBox);
+        var updateRow = Row();
+        var checkNowButton = new Button { Text = "Check Now", AutoSize = true };
+        checkNowButton.Click += async (_, _) => await Updater.CheckAsync(false);
+        updateRow.Controls.Add(checkNowButton);
+        updateRow.Controls.Add(new Label { Text = $"  Installed: v{Updater.CurrentVersion}", AutoSize = true, ForeColor = Color.Gray, Padding = new Padding(0, 6, 0, 0) });
+        layout.Controls.Add(updateRow);
+
         layout.Controls.Add(Section("READINESS"));
         readinessLabel = new Label { AutoSize = true, MaximumSize = new Size(430, 0) };
         layout.Controls.Add(readinessLabel);
@@ -177,6 +189,7 @@ public class SettingsForm : Form
         ownerNameBox.Text = config.OwnerName;
         ownerEmailBox.Text = config.OwnerEmail;
         ownerMessageBox.Text = config.OwnerMessage;
+        autoUpdateBox.Checked = config.AutoUpdateCheck;
         using var runKey = Registry.CurrentUser.OpenSubKey(RunKeyPath);
         autostartBox.Checked = runKey?.GetValue("Banshell") != null;
         UpdateLive();
@@ -197,6 +210,7 @@ public class SettingsForm : Form
         config.OwnerName = ownerNameBox.Text;
         config.OwnerEmail = ownerEmailBox.Text;
         config.OwnerMessage = ownerMessageBox.Text;
+        config.AutoUpdateCheck = autoUpdateBox.Checked;
         config.Save();
         watcher.ReloadConfig(config);
     }

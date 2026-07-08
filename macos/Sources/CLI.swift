@@ -152,6 +152,16 @@ func runCLI(_ command: String) {
         commandStatus()
     case "sensors":
         commandSensors()
+    case "update":
+        print("Checking for updates (current v\(banshellVersion))…")
+        switch Updater.shared.fetchLatest() {
+        case .upToDate:
+            print("Up to date — v\(banshellVersion) is the latest release.")
+        case .available(let info):
+            print("Update available: v\(info.version). Open the menu bar app → Check for Updates to install.")
+        case .failed(let message):
+            print("Could not check: \(message)")
+        }
     case "version":
         print("BANSHELL v\(banshellVersion)")
     default:
@@ -168,6 +178,7 @@ func runCLI(_ command: String) {
           preview     show the alarm screen silently (Esc closes)
           sensors     live lid-angle / power feed
           setpin      change the disarm code
+          update      check GitHub for a newer release
           uninstall   stop and remove the watcher
         """)
     }

@@ -20,6 +20,7 @@ public class BanshellConfig
     public string OwnerName { get; set; } = "";
     public string OwnerEmail { get; set; } = "";
     public string OwnerMessage { get; set; } = "";
+    public bool AutoUpdateCheck { get; set; } = true;
 
     public bool HasPin => PinHashHex.Length > 0;
 

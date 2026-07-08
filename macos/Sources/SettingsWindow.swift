@@ -20,6 +20,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
     private var ownerNameField: NSTextField!
     private var ownerEmailField: NSTextField!
     private var ownerMessageField: NSTextField!
+    private var autoUpdateCheckbox: NSButton!
     private var angleTimer: Timer?
     private var sudoNotice: (message: String, until: Date)?
 
@@ -191,6 +192,21 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         stack.addArrangedSubview(grantRow)
 
         stack.addArrangedSubview(spacer(8))
+        stack.addArrangedSubview(sectionLabel("Updates"))
+        let updateRow = NSStackView()
+        updateRow.orientation = .horizontal
+        autoUpdateCheckbox = NSButton(checkboxWithTitle: "Automatically check for updates",
+                                      target: self, action: #selector(controlChanged))
+        let checkNowButton = NSButton(title: "Check Now", target: self, action: #selector(checkForUpdatesNow))
+        updateRow.addArrangedSubview(autoUpdateCheckbox)
+        updateRow.addArrangedSubview(checkNowButton)
+        stack.addArrangedSubview(updateRow)
+        let versionLabel = NSTextField(labelWithString: "Installed: v\(banshellVersion)")
+        versionLabel.font = NSFont.systemFont(ofSize: 11)
+        versionLabel.textColor = .secondaryLabelColor
+        stack.addArrangedSubview(versionLabel)
+
+        stack.addArrangedSubview(spacer(8))
         let footer = NSTextField(labelWithString: "Changes save immediately. A 10-second power-button hold defeats any software alarm — keep FileVault and Find My on.")
         footer.font = NSFont.systemFont(ofSize: 11)
         footer.textColor = .secondaryLabelColor
@@ -239,6 +255,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         ownerNameField.stringValue = config.ownerName ?? ""
         ownerEmailField.stringValue = config.ownerEmail ?? ""
         ownerMessageField.stringValue = config.ownerMessage ?? ""
+        autoUpdateCheckbox.state = config.autoUpdateCheck != false ? .on : .off
     }
 
     func controlTextDidChange(_ notification: Notification) {
@@ -261,8 +278,13 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         sensitivityLabel.stringValue = "\(Int(config.lidDeltaDegrees))°"
         config.exitDelaySeconds = exitChoices[max(0, exitDelayPopup.indexOfSelectedItem)]
         config.entryDelaySeconds = entryChoices[max(0, entryDelayPopup.indexOfSelectedItem)]
+        config.autoUpdateCheck = autoUpdateCheckbox.state == .on
         saveConfig(config)
         watcher.reloadConfig(config)
+    }
+
+    @objc private func checkForUpdatesNow() {
+        Updater.shared.checkForUpdates(silent: false)
     }
 
     private func updateLiveAngle() {
