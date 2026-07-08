@@ -10,6 +10,7 @@ public class AlarmForm : Form
     private readonly System.Windows.Forms.Timer enforcerTimer;
     private readonly System.Windows.Forms.Timer focusTimer;
     private readonly System.Windows.Forms.Timer borderPulse;
+    private readonly AlarmKeyBlocker keyBlocker = new();
     private DateTime? entryDeadline;
     private float? savedVolume;
     private bool disarmed;
@@ -170,7 +171,7 @@ public class AlarmForm : Form
         enforcerTimer = new System.Windows.Forms.Timer { Interval = 150 };
         enforcerTimer.Tick += (_, _) => VolumeControl.SetVolume(1.0f);
 
-        focusTimer = new System.Windows.Forms.Timer { Interval = 1000 };
+        focusTimer = new System.Windows.Forms.Timer { Interval = 250 };
         focusTimer.Tick += (_, _) =>
         {
             TopMost = true;
@@ -184,11 +185,14 @@ public class AlarmForm : Form
         };
         focusTimer.Start();
 
+        keyBlocker.Start();
+
         Shown += (_, _) => pinBox.Focus();
         FormClosing += (_, args) =>
         {
             if (!disarmed) args.Cancel = true;
         };
+        FormClosed += (_, _) => keyBlocker.Dispose();
     }
 
     private void TickCountdown()
@@ -226,6 +230,7 @@ public class AlarmForm : Form
         enforcerTimer.Stop();
         focusTimer.Stop();
         borderPulse.Stop();
+        keyBlocker.Dispose();
         SirenAudio.Stop();
         if (savedVolume is { } volume) VolumeControl.SetVolume(volume);
         Disarmed?.Invoke();
