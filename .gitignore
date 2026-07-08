@@ -1,0 +1,5 @@
+.DS_Store
+macos/build/
+windows/bin/
+windows/obj/
+windows/publish/
