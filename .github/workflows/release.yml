@@ -13,13 +13,15 @@ jobs:
     runs-on: macos-14
     steps:
       - uses: actions/checkout@v4
-      - name: Build universal app
+      - name: Build universal app, zip, and installer pkg
         run: bash macos/build.sh
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: macos/build/Banshell-macOS.zip
+          files: |
+            macos/build/Banshell-macOS-Installer.pkg
+            macos/build/Banshell-macOS.zip
 
   windows:
     runs-on: windows-latest
@@ -30,10 +32,20 @@ jobs:
           dotnet-version: "8.0.x"
       - name: Publish self-contained build
         run: dotnet publish windows/Banshell.csproj -c Release -r win-x64 --self-contained -o windows/publish
-      - name: Zip
-        run: Compress-Archive -Path windows/publish/* -DestinationPath Banshell-Windows.zip
+      - name: Build installer with Inno Setup
+        shell: pwsh
+        run: |
+          choco install innosetup --no-progress -y
+          $version = "${{ github.ref_name }}" -replace '^v',''
+          if (-not $version) { $version = "1.4.0" }
+          $env:BANSHELL_VERSION = $version
+          & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" windows\installer.iss
+      - name: Zip portable build
+        run: Compress-Archive -Path windows/publish/* -DestinationPath Banshell-Windows-portable.zip
       - name: Upload to release
         uses: softprops/action-gh-release@v2
         if: startsWith(github.ref, 'refs/tags/')
         with:
-          files: Banshell-Windows.zip
+          files: |
+            windows/Banshell-Setup.exe
+            Banshell-Windows-portable.zip

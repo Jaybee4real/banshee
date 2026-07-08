@@ -37,30 +37,22 @@ On macOS, killing the process doesn't help either: launchd restarts it in under 
 
 ### macOS (Apple Silicon or Intel, macOS 13+)
 
-Download `Banshell-macOS.zip` from the [latest release](../../releases/latest), unzip, and drag `Banshell.app` to Applications. The app is self-signed, so the first launch needs a right-click → Open, or:
+Download `Banshell-macOS-Installer.pkg` from the [latest release](../../releases/latest) and double-click it. It's not signed with a paid Apple certificate, so macOS blocks the first open: right-click the pkg → **Open**, or approve it under System Settings → Privacy & Security → **Open Anyway**. The installer drops BANSHELL in Applications and starts the background agent for you, so there's no Terminal step. Set your disarm code in the window that appears, and it lives in the menu bar from then on.
 
-```
-xattr -dr com.apple.quarantine /Applications/Banshell.app
-```
-
-Launch it, set your disarm code, and it lives in the menu bar. Then two one-time grants, both shown in Settings with a button each:
+Then two one-time grants, both a single button in Settings:
 
 1. **Closed-lid protection.** BANSHELL keeps the Mac awake while armed so the speakers stay live with the lid shut. That needs one `pmset` sudoers entry. Click "Enable Closed-Lid Protection" in Settings and enter your admin password in the macOS prompt; the rule is checked with `visudo -cf` before it's installed. Prefer to see exactly what runs? The "copy the command instead" button gives you the same thing for Terminal.
 2. **Touch trigger.** Add Banshell under System Settings → Privacy & Security → Input Monitoring.
 
-To make it start at login and respawn if killed:
-
-```
-/Applications/Banshell.app/Contents/MacOS/banshell install
-```
-
-There's a full CLI too (`banshell status`, `arm`, `disarm`, `drill`, `preview`, `sensors`) if you'd rather script it.
+Prefer to do it by hand? `Banshell-macOS.zip` is also attached: unzip, drag `Banshell.app` to Applications, then run `/Applications/Banshell.app/Contents/MacOS/banshell install`. There's a full CLI too (`banshell status`, `arm`, `disarm`, `drill`, `preview`, `sensors`).
 
 ### Windows (10/11, 64-bit)
 
-Download `Banshell-Windows.zip` from the [latest release](../../releases/latest), unzip anywhere, run `Banshell.exe`. It's self-contained, so there is no runtime to install. SmartScreen will warn about an unsigned app the first time; choose "Run anyway."
+Download `Banshell-Setup.exe` from the [latest release](../../releases/latest) and run it. It's not signed with a paid certificate, so SmartScreen warns the first time: click **More info → Run anyway**. Click through the installer, tick "Start BANSHELL automatically when Windows starts" if you want autostart, and it finishes by launching the app to its tray. Nothing else to install, since it's self-contained.
 
-Set your code, then in Settings tick "Start BANSHELL when Windows starts." One thing Windows won't let an app do quietly: keep running with the lid closed. If you want that, set the lid action to "Do nothing" in Power Options.
+Set your code in the first window. One thing Windows won't let an app do quietly: keep running with the lid closed. If you want that, set the lid action to "Do nothing" in Power Options.
+
+Prefer no installer? `Banshell-Windows-portable.zip` is also attached: unzip anywhere and run `Banshell.exe`.
 
 ## Test it before you need it
 

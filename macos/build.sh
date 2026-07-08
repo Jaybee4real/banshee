@@ -17,4 +17,16 @@ if [ -f Assets/Banshell.icns ]; then
 fi
 codesign --force --deep -s - "$APP"
 ditto -c -k --keepParent "$APP" build/Banshell-macOS.zip
-echo "built: $APP and build/Banshell-macOS.zip"
+
+VERSION=$(plutil -extract CFBundleShortVersionString raw Info.plist)
+PKGROOT=build/pkgroot
+rm -rf "$PKGROOT"
+mkdir -p "$PKGROOT/Applications"
+cp -R "$APP" "$PKGROOT/Applications/Banshell.app"
+chmod +x pkg-scripts/postinstall
+pkgbuild --root "$PKGROOT" --identifier com.jaybee.banshell --version "$VERSION" \
+  --scripts pkg-scripts --install-location / build/Banshell-component.pkg >/dev/null
+productbuild --package build/Banshell-component.pkg build/Banshell-macOS-Installer.pkg >/dev/null
+rm -f build/Banshell-component.pkg
+
+echo "built: $APP, build/Banshell-macOS.zip, build/Banshell-macOS-Installer.pkg"
