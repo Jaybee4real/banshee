@@ -28,6 +28,10 @@ public class BanshellConfig
     public int DisarmHour { get; set; } = 7;
     public int DisarmMinute { get; set; } = 0;
     public int[] ScheduleDays { get; set; } = { 0, 1, 2, 3, 4, 5, 6 };
+    public bool IdleAutoArm { get; set; } = false;
+    public int IdleMinutes { get; set; } = 10;
+    public bool WifiTrigger { get; set; } = false;
+    public bool MicTrigger { get; set; } = false;
 
     public bool HasPin => PinHashHex.Length > 0;
 

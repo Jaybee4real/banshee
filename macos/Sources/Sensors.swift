@@ -1,7 +1,34 @@
 import CoreGraphics
+import CoreWLAN
 import Foundation
+import IOKit
 import IOKit.hid
 import IOKit.ps
+
+func systemIdleSeconds() -> Double {
+    var iterator: io_iterator_t = 0
+    guard IOServiceGetMatchingServices(kIOMainPortDefault, IOServiceMatching("IOHIDSystem"), &iterator) == KERN_SUCCESS else {
+        return 0
+    }
+    defer { IOObjectRelease(iterator) }
+    let entry = IOIteratorNext(iterator)
+    guard entry != 0 else { return 0 }
+    defer { IOObjectRelease(entry) }
+    var properties: Unmanaged<CFMutableDictionary>?
+    guard IORegistryEntryCreateCFProperties(entry, &properties, kCFAllocatorDefault, 0) == KERN_SUCCESS,
+          let dictionary = properties?.takeRetainedValue() as? [String: Any],
+          let idleNanoseconds = dictionary["HIDIdleTime"] as? UInt64 else { return 0 }
+    return Double(idleNanoseconds) / 1_000_000_000
+}
+
+func wifiRSSI() -> Int {
+    CWWiFiClient.shared().interface()?.rssiValue() ?? 0
+}
+
+func wifiConnected() -> Bool {
+    guard let interface = CWWiFiClient.shared().interface() else { return false }
+    return interface.powerOn() && interface.serviceActive() && interface.rssiValue() != 0
+}
 
 final class LidSensor {
     private let manager: IOHIDManager

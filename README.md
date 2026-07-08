@@ -18,6 +18,8 @@ On macOS:
 | Charger disconnect | Yanking the power cable. |
 | Input tap | Any key press, click, scroll, or trackpad touch. |
 | Camera motion (opt-in) | The laptop being lifted or carried with the lid open, which the hinge sensor can miss. |
+| Wi-Fi departure (opt-in) | The machine being carried out of your network's range — works with the lid closed. |
+| Microphone (opt-in) | A loud sound or handling noise nearby — works with the lid closed. |
 
 Apple Silicon Macs have no accelerometer — Apple removed it years ago — so the hinge sensor is the only built-in inertial signal, and it only sees the lid move relative to the base. To catch the machine being physically moved with the lid untouched, turn on the camera motion trigger in Settings: while armed it watches the webcam for a sudden scene change. It's off by default because it lights the green camera LED and needs camera permission.
 
@@ -70,6 +72,10 @@ Fire a drill from the menu (Test Siren) or with `banshell drill`. The real siren
 Everything lives in the Settings window: the schedule, which triggers are active, motion sensitivity with a live sensor readout, the walk-away delay (so arming doesn't trap you at your own desk), the siren delay, the disarm code, and the owner card shown on the alarm screen. Changes save immediately.
 
 The schedule is a nightly window: pick an arm time, optionally an auto-disarm time, and the days of the week it runs. So you can have it arm at 23:00 and disarm itself at 07:00 on weekdays, and never think about it. Auto-disarm only fires when the machine is sitting armed and quiet — if the siren is already going, the schedule will not silence it, only your code will.
+
+There's also an idle auto-arm: once the arm time has passed, if the machine is sitting disarmed and you haven't touched it for N minutes (default 10), it arms itself. So if you walk away without arming, it covers you.
+
+Wi-Fi departure and microphone are the two triggers that keep working with the lid shut, since the hinge sensor is clamped and the camera is covered when closed. Both are opt-in. The microphone needs permission — there's an "Allow" button right next to its toggle.
 
 ## Staying up to date
 

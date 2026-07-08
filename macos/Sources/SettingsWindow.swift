@@ -1,5 +1,9 @@
 import AppKit
 
+final class FlippedView: NSView {
+    override var isFlipped: Bool { true }
+}
+
 final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDelegate {
     private let watcher: Watcher
     private var window: NSWindow?
@@ -24,6 +28,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
     private var ownerEmailField: NSTextField!
     private var ownerMessageField: NSTextField!
     private var autoUpdateCheckbox: NSButton!
+    private var idleAutoArmCheckbox: NSButton!
+    private var idleMinutesField: NSTextField!
+    private var wifiCheckbox: NSButton!
+    private var micCheckbox: NSButton!
+    private var micGrantButton: NSButton!
+    private var cameraGrantButton: NSButton!
     private var cameraCheckbox: NSButton!
     private var cameraStatusLabel: NSTextField!
     private var onChargerCheckbox: NSButton!
@@ -132,6 +142,20 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         }
         stack.addArrangedSubview(daysRow)
 
+        let idleRow = NSStackView()
+        idleRow.orientation = .horizontal
+        idleRow.spacing = 6
+        idleAutoArmCheckbox = NSButton(checkboxWithTitle: "Arm after no use for",
+                                       target: self, action: #selector(controlChanged))
+        idleMinutesField = NSTextField(string: "10")
+        idleMinutesField.alignment = .center
+        idleMinutesField.widthAnchor.constraint(equalToConstant: 44).isActive = true
+        idleMinutesField.delegate = self
+        idleRow.addArrangedSubview(idleAutoArmCheckbox)
+        idleRow.addArrangedSubview(idleMinutesField)
+        idleRow.addArrangedSubview(NSTextField(labelWithString: "min (once past the arm time)"))
+        stack.addArrangedSubview(idleRow)
+
         stack.addArrangedSubview(spacer(8))
         stack.addArrangedSubview(sectionLabel("Triggers"))
         lidCheckbox = NSButton(checkboxWithTitle: "Motion — lid hinge angle changes",
@@ -163,11 +187,21 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
                                  target: self, action: #selector(controlChanged))
         stack.addArrangedSubview(touchCheckbox)
 
+        wifiCheckbox = NSButton(checkboxWithTitle: "Left Wi-Fi range (works with the lid closed)",
+                                target: self, action: #selector(controlChanged))
+        stack.addArrangedSubview(wifiCheckbox)
+
+        micCheckbox = NSButton(checkboxWithTitle: "Loud sound nearby — microphone",
+                               target: self, action: #selector(micToggled))
+        micGrantButton = NSButton(title: "Allow…", target: self, action: #selector(grantMic))
+        stack.addArrangedSubview(permissionRow(micCheckbox, micGrantButton))
+
         stack.addArrangedSubview(spacer(8))
         stack.addArrangedSubview(sectionLabel("Motion — camera (catches movement with the lid open)"))
         cameraCheckbox = NSButton(checkboxWithTitle: "Detect movement with the camera",
                                   target: self, action: #selector(cameraToggled))
-        stack.addArrangedSubview(cameraCheckbox)
+        cameraGrantButton = NSButton(title: "Allow…", target: self, action: #selector(grantCamera))
+        stack.addArrangedSubview(permissionRow(cameraCheckbox, cameraGrantButton))
         cameraStatusLabel = NSTextField(labelWithString: "")
         cameraStatusLabel.font = NSFont.systemFont(ofSize: 11)
         cameraStatusLabel.textColor = .secondaryLabelColor
@@ -298,16 +332,32 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         footer.preferredMaxLayoutWidth = 400
         stack.addArrangedSubview(footer)
 
-        let content = NSView()
-        content.addSubview(stack)
+        let documentView = FlippedView()
+        documentView.translatesAutoresizingMaskIntoConstraints = false
+        documentView.addSubview(stack)
         NSLayoutConstraint.activate([
-            stack.topAnchor.constraint(equalTo: content.topAnchor),
-            stack.leadingAnchor.constraint(equalTo: content.leadingAnchor),
-            stack.trailingAnchor.constraint(lessThanOrEqualTo: content.trailingAnchor),
-            stack.bottomAnchor.constraint(lessThanOrEqualTo: content.bottomAnchor),
+            stack.topAnchor.constraint(equalTo: documentView.topAnchor),
+            stack.leadingAnchor.constraint(equalTo: documentView.leadingAnchor),
+            stack.trailingAnchor.constraint(equalTo: documentView.trailingAnchor),
+            stack.bottomAnchor.constraint(equalTo: documentView.bottomAnchor),
+        ])
+        let scrollView = NSScrollView()
+        scrollView.hasVerticalScroller = true
+        scrollView.drawsBackground = false
+        scrollView.autohidesScrollers = true
+        scrollView.documentView = documentView
+        scrollView.translatesAutoresizingMaskIntoConstraints = false
+        let content = NSView()
+        content.addSubview(scrollView)
+        NSLayoutConstraint.activate([
+            scrollView.topAnchor.constraint(equalTo: content.topAnchor),
+            scrollView.leadingAnchor.constraint(equalTo: content.leadingAnchor),
+            scrollView.trailingAnchor.constraint(equalTo: content.trailingAnchor),
+            scrollView.bottomAnchor.constraint(equalTo: content.bottomAnchor),
+            documentView.widthAnchor.constraint(equalTo: scrollView.contentView.widthAnchor),
         ])
         panel.contentView = content
-        panel.setContentSize(NSSize(width: 470, height: 960))
+        panel.setContentSize(NSSize(width: 486, height: 680))
         window = panel
     }
 
@@ -321,6 +371,18 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         let view = NSView()
         view.widthAnchor.constraint(equalToConstant: 18).isActive = true
         return view
+    }
+
+    private func permissionRow(_ checkbox: NSButton, _ grantButton: NSButton) -> NSStackView {
+        let row = NSStackView()
+        row.orientation = .horizontal
+        row.spacing = 8
+        row.distribution = .fill
+        checkbox.setContentHuggingPriority(.defaultLow, for: .horizontal)
+        row.addArrangedSubview(checkbox)
+        row.addArrangedSubview(grantButton)
+        row.widthAnchor.constraint(equalToConstant: 420).isActive = true
+        return row
     }
 
     private func applyConfigToControls() {
@@ -353,7 +415,38 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         batteryFloorSlider.doubleValue = Double(config.batteryFloor)
         batteryFloorLabel.stringValue = "\(config.batteryFloor)%"
         lidClosedCheckbox.state = config.watchLidClosed ? .on : .off
+        idleAutoArmCheckbox.state = config.idleAutoArmOn ? .on : .off
+        idleMinutesField.stringValue = "\(config.idleArmMinutes)"
+        wifiCheckbox.state = config.wifiTriggerOn ? .on : .off
+        micCheckbox.state = config.micTriggerOn ? .on : .off
         updateCameraStatus()
+        updatePermissionButtons()
+    }
+
+    private func updatePermissionButtons() {
+        cameraGrantButton.isHidden = watcher.camera.authorized
+        micGrantButton.isHidden = watcher.mic.authorized
+    }
+
+    @objc private func grantCamera() {
+        watcher.camera.requestAccess { [weak self] _ in self?.updatePermissionButtons() }
+    }
+
+    @objc private func grantMic() {
+        watcher.mic.requestAccess { [weak self] _ in self?.updatePermissionButtons() }
+    }
+
+    @objc private func micToggled() {
+        if micCheckbox.state == .on, !watcher.mic.authorized {
+            watcher.mic.requestAccess { [weak self] granted in
+                guard let self else { return }
+                if !granted { self.micCheckbox.state = .off }
+                self.updatePermissionButtons()
+                self.controlChanged()
+            }
+            return
+        }
+        controlChanged()
     }
 
     private func updateCameraStatus() {
@@ -386,6 +479,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         config.ownerName = ownerNameField.stringValue
         config.ownerEmail = ownerEmailField.stringValue
         config.ownerMessage = ownerMessageField.stringValue
+        let minutes = max(1, min(120, Int(idleMinutesField.stringValue.filter { $0.isNumber }) ?? config.idleArmMinutes))
+        config.idleMinutes = minutes
         saveConfig(config)
         watcher.reloadConfig(config)
     }
@@ -414,10 +509,14 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         config.motionOnBattery = onBatteryCheckbox.state == .on
         config.motionBatteryFloor = Int(batteryFloorSlider.doubleValue)
         config.watchWhenLidClosed = lidClosedCheckbox.state == .on
+        config.idleAutoArm = idleAutoArmCheckbox.state == .on
+        config.wifiTrigger = wifiCheckbox.state == .on
+        config.micTrigger = micCheckbox.state == .on
         batteryFloorLabel.stringValue = "\(Int(batteryFloorSlider.doubleValue))%"
         saveConfig(config)
         watcher.reloadConfig(config)
         updateCameraStatus()
+        updatePermissionButtons()
     }
 
     @objc private func checkForUpdatesNow() {

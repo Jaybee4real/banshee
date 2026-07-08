@@ -11,6 +11,10 @@ public class SettingsForm : Form
     private readonly CheckBox autoDisarmBox;
     private readonly DateTimePicker disarmTimePicker;
     private readonly CheckBox[] dayButtons;
+    private readonly CheckBox idleAutoArmBox;
+    private readonly NumericUpDown idleMinutesBox;
+    private readonly CheckBox wifiBox;
+    private readonly CheckBox micBox;
     private readonly CheckBox motionBox;
     private readonly TrackBar sensitivityBar;
     private readonly Label sensitivityLabel;
@@ -103,6 +107,16 @@ public class SettingsForm : Form
         }
         layout.Controls.Add(daysRow);
 
+        var idleRow = Row();
+        idleAutoArmBox = new CheckBox { Text = "Arm after no use for", AutoSize = true, Padding = new Padding(0, 4, 0, 0) };
+        idleAutoArmBox.CheckedChanged += (_, _) => SaveFromControls();
+        idleMinutesBox = new NumericUpDown { Minimum = 1, Maximum = 120, Value = 10, Width = 60 };
+        idleMinutesBox.ValueChanged += (_, _) => SaveFromControls();
+        idleRow.Controls.Add(idleAutoArmBox);
+        idleRow.Controls.Add(idleMinutesBox);
+        idleRow.Controls.Add(new Label { Text = "min (once past the arm time)", AutoSize = true, Padding = new Padding(0, 6, 0, 0) });
+        layout.Controls.Add(idleRow);
+
         layout.Controls.Add(Section("TRIGGERS"));
         motionBox = new CheckBox { Text = "Motion — accelerometer", AutoSize = true };
         motionBox.CheckedChanged += (_, _) => SaveFromControls();
@@ -126,6 +140,19 @@ public class SettingsForm : Form
         inputBox = new CheckBox { Text = "Keyboard or mouse touched", AutoSize = true };
         inputBox.CheckedChanged += (_, _) => SaveFromControls();
         layout.Controls.Add(inputBox);
+
+        wifiBox = new CheckBox { Text = "Left Wi-Fi range (works with the lid closed)", AutoSize = true };
+        wifiBox.CheckedChanged += (_, _) => SaveFromControls();
+        layout.Controls.Add(wifiBox);
+
+        var micRow = Row();
+        micBox = new CheckBox { Text = "Loud sound nearby — microphone", AutoSize = true, Padding = new Padding(0, 4, 0, 0) };
+        micBox.CheckedChanged += (_, _) => SaveFromControls();
+        var micAllowButton = new Button { Text = "Allow…", AutoSize = true };
+        micAllowButton.Click += (_, _) => OpenMicPrivacy();
+        micRow.Controls.Add(micBox);
+        micRow.Controls.Add(micAllowButton);
+        layout.Controls.Add(micRow);
 
         layout.Controls.Add(Section("ACCELEROMETER POWER RULES"));
         motionOnChargerBox = new CheckBox { Text = "Use accelerometer while charging", AutoSize = true };
@@ -240,6 +267,10 @@ public class SettingsForm : Form
         disarmTimePicker.Value = DateTime.Today.AddHours(config.DisarmHour).AddMinutes(config.DisarmMinute);
         for (int index = 0; index < 7; index++)
             dayButtons[index].Checked = config.ScheduleDays.Contains(index);
+        idleAutoArmBox.Checked = config.IdleAutoArm;
+        idleMinutesBox.Value = Math.Clamp(config.IdleMinutes, (int)idleMinutesBox.Minimum, (int)idleMinutesBox.Maximum);
+        wifiBox.Checked = config.WifiTrigger;
+        micBox.Checked = config.MicTrigger;
         motionBox.Checked = config.MotionTrigger;
         powerBox.Checked = config.PowerTrigger;
         inputBox.Checked = config.InputTrigger;
@@ -270,6 +301,10 @@ public class SettingsForm : Form
         config.DisarmMinute = disarmTimePicker.Value.Minute;
         var selectedDays = Enumerable.Range(0, 7).Where(index => dayButtons[index].Checked).ToArray();
         config.ScheduleDays = selectedDays.Length == 0 ? new[] { 0, 1, 2, 3, 4, 5, 6 } : selectedDays;
+        config.IdleAutoArm = idleAutoArmBox.Checked;
+        config.IdleMinutes = (int)idleMinutesBox.Value;
+        config.WifiTrigger = wifiBox.Checked;
+        config.MicTrigger = micBox.Checked;
         config.MotionTrigger = motionBox.Checked;
         config.PowerTrigger = powerBox.Checked;
         config.InputTrigger = inputBox.Checked;
@@ -287,6 +322,18 @@ public class SettingsForm : Form
         batteryFloorLabel.Text = $"{batteryFloorBar.Value}%";
         config.Save();
         watcher.ReloadConfig(config);
+    }
+
+    private static void OpenMicPrivacy()
+    {
+        try
+        {
+            System.Diagnostics.Process.Start(new System.Diagnostics.ProcessStartInfo("ms-settings:privacy-microphone")
+            {
+                UseShellExecute = true,
+            });
+        }
+        catch { }
     }
 
     private void ApplyAutostart()

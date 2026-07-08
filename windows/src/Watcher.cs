@@ -1,15 +1,31 @@
+using System.Net.NetworkInformation;
+using System.Runtime.InteropServices;
+
 namespace Banshell;
 
 public class Watcher : IDisposable
 {
+    [StructLayout(LayoutKind.Sequential)]
+    private struct LastInputInfo
+    {
+        public uint Size;
+        public uint Time;
+    }
+
+    [DllImport("user32.dll")]
+    private static extern bool GetLastInputInfo(ref LastInputInfo info);
+
     public BanshellConfig Config { get; private set; }
     private BanshellState state;
     private readonly System.Windows.Forms.Timer tick;
     private readonly AccelerometerMonitor accelerometer = new();
     private readonly InputHooks hooks = new();
+    private MicLevelWin? mic;
+    private bool? wifiBaselineConnected;
     private (double X, double Y, double Z)? accelBaseline;
     private bool? powerBaselineOnline;
     private DateTime? monitoringStartsAt;
+    private int tickCounter;
 
     public event Action<string>? AlarmRequested;
     public event Action? StateChanged;
@@ -62,7 +78,9 @@ public class Watcher : IDisposable
         state.Reason = null;
         accelBaseline = null;
         powerBaselineOnline = null;
+        wifiBaselineConnected = null;
         monitoringStartsAt = null;
+        StopMic();
         BanshellConfig.SaveState(state);
         KeepAwake.Disable();
         StateChanged?.Invoke();
@@ -79,6 +97,8 @@ public class Watcher : IDisposable
         if (state.Triggered) return;
         state.Triggered = true;
         state.Reason = reason;
+        wifiBaselineConnected = null;
+        StopMic();
         BanshellConfig.SaveState(state);
         StateChanged?.Invoke();
         AlarmRequested?.Invoke(reason);
@@ -93,9 +113,16 @@ public class Watcher : IDisposable
 
     private void Tick()
     {
+        tickCounter++;
         CheckAutoArm();
         if (!state.Armed || state.Triggered) return;
         if (monitoringStartsAt == null || DateTime.Now < monitoringStartsAt) return;
+
+        if (tickCounter % 20 == 0)
+        {
+            EvaluateMic();
+            CheckWifi();
+        }
 
         var accelerometerAllowed = Config.MotionTrigger && MotionSensingAllowedNow();
         if (accelerometerAllowed && accelBaseline == null)
@@ -138,6 +165,87 @@ public class Watcher : IDisposable
             state.LastAutoDisarmDay = today;
             Disarm();
         }
+        if (Config.IdleAutoArm && Config.AutoArmDaily && !state.Armed && !state.Triggered)
+        {
+            int nowMinutes = now.Hour * 60 + now.Minute;
+            int armMinutes = Config.ArmHour * 60 + Config.ArmMinute;
+            int endMinutes = Config.AutoDisarmDaily ? Config.DisarmHour * 60 + Config.DisarmMinute : armMinutes;
+            if (InWindow(nowMinutes, armMinutes, endMinutes) && SystemIdleSeconds() >= Config.IdleMinutes * 60)
+                Arm();
+        }
+    }
+
+    private static bool InWindow(int now, int start, int end)
+    {
+        if (start == end) return now >= start;
+        if (start < end) return now >= start && now < end;
+        return now >= start || now < end;
+    }
+
+    private static double SystemIdleSeconds()
+    {
+        var info = new LastInputInfo { Size = (uint)Marshal.SizeOf<LastInputInfo>() };
+        if (!GetLastInputInfo(ref info)) return 0;
+        return unchecked((uint)Environment.TickCount - info.Time) / 1000.0;
+    }
+
+    private static bool WifiConnected()
+    {
+        try
+        {
+            return NetworkInterface.GetAllNetworkInterfaces().Any(nic =>
+                nic.NetworkInterfaceType == NetworkInterfaceType.Wireless80211
+                && nic.OperationalStatus == OperationalStatus.Up);
+        }
+        catch
+        {
+            return false;
+        }
+    }
+
+    private void EvaluateMic()
+    {
+        if (Config.MicTrigger && mic == null)
+        {
+            mic = new MicLevelWin();
+            mic.Loud += OnMicLoud;
+            mic.Start();
+        }
+        else if (!Config.MicTrigger && mic != null)
+        {
+            mic.Loud -= OnMicLoud;
+            mic.Dispose();
+            mic = null;
+        }
+    }
+
+    private void OnMicLoud()
+    {
+        if (!state.Armed || state.Triggered) return;
+        if (monitoringStartsAt == null || DateTime.Now < monitoringStartsAt) return;
+        Trigger("loud sound — microphone");
+    }
+
+    private void CheckWifi()
+    {
+        if (!Config.WifiTrigger) { wifiBaselineConnected = null; return; }
+        if (wifiBaselineConnected == null)
+        {
+            wifiBaselineConnected = WifiConnected();
+            return;
+        }
+        if (wifiBaselineConnected == true && !WifiConnected())
+            Trigger("left Wi-Fi range — network dropped");
+    }
+
+    private void StopMic()
+    {
+        if (mic != null)
+        {
+            mic.Loud -= OnMicLoud;
+            mic.Dispose();
+            mic = null;
+        }
     }
 
     private bool MotionSensingAllowedNow()
@@ -165,6 +273,7 @@ public class Watcher : IDisposable
     {
         tick.Stop();
         hooks.Dispose();
+        StopMic();
         KeepAwake.Disable();
     }
 }

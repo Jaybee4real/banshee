@@ -9,7 +9,11 @@ final class Watcher {
     private let inputTap = InputTap()
     private let alarm = AlarmController()
     let camera = CameraMotion()
+    let mic = MicLevel()
     private var cameraRunning = false
+    private var micRunning = false
+    private var wifiBaselineConnected: Bool?
+    private var wifiBaselineRSSI = 0
     private var lidBaseline: Double?
     private var powerBaselineAC: Bool?
     private var monitoringStartsAt: Date?
@@ -31,6 +35,9 @@ final class Watcher {
         }
         camera.onMotion = { [weak self] in
             self?.queue.async { self?.handleCameraMotion() }
+        }
+        mic.onLoud = { [weak self] in
+            self?.queue.async { self?.handleMicMotion() }
         }
     }
 
@@ -118,7 +125,11 @@ final class Watcher {
         guard state.armed, !state.triggered else { return }
         guard let startsAt = monitoringStartsAt else { return }
         guard Date() >= startsAt else { return }
-        if tickCounter % 20 == 0 { evaluateCamera() }
+        if tickCounter % 20 == 0 {
+            evaluateCamera()
+            evaluateMic()
+            checkWifi()
+        }
         if lidBaseline == nil, config.lidTrigger, let angle = lidSensor.readAngle() {
             lidBaseline = angle
             logLine("lid baseline captured: \(angle)°")
@@ -147,6 +158,49 @@ final class Watcher {
         guard state.armed, !state.triggered, cameraRunning else { return }
         guard let startsAt = monitoringStartsAt, Date() >= startsAt else { return }
         trigger(reason: "device moved — camera")
+    }
+
+    private func handleMicMotion() {
+        guard state.armed, !state.triggered, micRunning else { return }
+        guard let startsAt = monitoringStartsAt, Date() >= startsAt else { return }
+        trigger(reason: "loud sound — microphone")
+    }
+
+    private func evaluateMic() {
+        let shouldRun = config.micTriggerOn
+        if shouldRun, !micRunning {
+            mic.start()
+            micRunning = true
+        } else if !shouldRun, micRunning {
+            mic.stop()
+            micRunning = false
+        }
+    }
+
+    private func stopMic() {
+        if micRunning {
+            mic.stop()
+            micRunning = false
+        }
+    }
+
+    private func checkWifi() {
+        guard config.wifiTriggerOn else { wifiBaselineConnected = nil; return }
+        if wifiBaselineConnected == nil {
+            wifiBaselineConnected = wifiConnected()
+            wifiBaselineRSSI = wifiRSSI()
+            logLine("wifi baseline: \(wifiBaselineConnected == true ? "connected \(wifiBaselineRSSI)dBm" : "not connected")")
+            return
+        }
+        guard wifiBaselineConnected == true else { return }
+        if !wifiConnected() {
+            trigger(reason: "left Wi-Fi range — network dropped")
+            return
+        }
+        let current = wifiRSSI()
+        if current != 0, wifiBaselineRSSI != 0, wifiBaselineRSSI - current >= 25 {
+            trigger(reason: "Wi-Fi signal collapsed — device carried away")
+        }
     }
 
     private func lidIsOpen() -> Bool {
@@ -193,6 +247,22 @@ final class Watcher {
             applyDisarm()
             logLine("auto-disarmed on schedule (\(config.disarmH):\(String(format: "%02d", config.disarmM)))")
         }
+        if config.idleAutoArmOn, config.autoArmDaily, !state.armed, !state.triggered {
+            let nowMinutes = (components.hour ?? 0) * 60 + (components.minute ?? 0)
+            let armMinutes = config.armHour * 60 + config.armMinute
+            let endMinutes = config.autoDisarmOn ? config.disarmH * 60 + config.disarmM : armMinutes
+            if timeInWindow(nowMinutes, armMinutes, endMinutes),
+               systemIdleSeconds() >= Double(config.idleArmMinutes * 60) {
+                applyArm()
+                logLine("idle auto-arm — no use for \(config.idleArmMinutes)min past arm time")
+            }
+        }
+    }
+
+    private func timeInWindow(_ now: Int, _ start: Int, _ end: Int) -> Bool {
+        if start == end { return now >= start }
+        if start < end { return now >= start && now < end }
+        return now >= start || now < end
     }
 
     private func checkExternalState() {
@@ -252,7 +322,9 @@ final class Watcher {
         lidBaseline = nil
         powerBaselineAC = nil
         monitoringStartsAt = nil
+        wifiBaselineConnected = nil
         stopCamera()
+        stopMic()
         writeState()
         runProcess("/usr/bin/sudo", ["-n", "/usr/bin/pmset", "disablesleep", "0"])
         if sleepAssertion != 0 {
@@ -267,6 +339,8 @@ final class Watcher {
         state.triggered = true
         state.reason = reason
         stopCamera()
+        stopMic()
+        wifiBaselineConnected = nil
         writeState()
         notifyChange()
         DispatchQueue.main.async { self.alarm.begin(reason: reason) }

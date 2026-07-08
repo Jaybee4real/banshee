@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-let banshellVersion = "1.7.0"
+let banshellVersion = "1.8.0"
 let launchdLabel = "com.jaybee.banshell"
 
 struct Config: Codable {
@@ -29,6 +29,10 @@ struct Config: Codable {
     var disarmHour: Int?
     var disarmMinute: Int?
     var scheduleDays: [Int]?
+    var idleAutoArm: Bool?
+    var idleMinutes: Int?
+    var wifiTrigger: Bool?
+    var micTrigger: Bool?
 
     static var defaults: Config {
         Config(pinSaltHex: "", pinHashHex: "", armHour: 23, armMinute: 0,
@@ -46,6 +50,10 @@ struct Config: Codable {
     var disarmH: Int { disarmHour ?? 7 }
     var disarmM: Int { disarmMinute ?? 0 }
     var scheduledDays: Set<Int> { Set(scheduleDays ?? [1, 2, 3, 4, 5, 6, 7]) }
+    var idleAutoArmOn: Bool { idleAutoArm == true }
+    var idleArmMinutes: Int { idleMinutes ?? 10 }
+    var wifiTriggerOn: Bool { wifiTrigger == true }
+    var micTriggerOn: Bool { micTrigger == true }
 
     func motionSensingAllowedNow() -> Bool {
         guard cameraMotionOn else { return false }
