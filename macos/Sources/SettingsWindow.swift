@@ -28,8 +28,11 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
     private var ownerEmailField: NSTextField!
     private var ownerMessageField: NSTextField!
     private var autoUpdateCheckbox: NSButton!
+    private var autoDownloadCheckbox: NSButton!
+    private var autoInstallCheckbox: NSButton!
     private var idleAutoArmCheckbox: NSButton!
     private var idleMinutesField: NSTextField!
+    private var daytimeIdleCheckbox: NSButton!
     private var daytimeIdleField: NSTextField!
     private var wifiCheckbox: NSButton!
     private var micCheckbox: NSButton!
@@ -160,11 +163,13 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         let daytimeIdleRow = NSStackView()
         daytimeIdleRow.orientation = .horizontal
         daytimeIdleRow.spacing = 6
+        daytimeIdleCheckbox = NSButton(checkboxWithTitle: "Arm after no use for",
+                                       target: self, action: #selector(controlChanged))
         daytimeIdleField = NSTextField(string: "30")
         daytimeIdleField.alignment = .center
         daytimeIdleField.widthAnchor.constraint(equalToConstant: 44).isActive = true
         daytimeIdleField.delegate = self
-        daytimeIdleRow.addArrangedSubview(indent())
+        daytimeIdleRow.addArrangedSubview(daytimeIdleCheckbox)
         daytimeIdleRow.addArrangedSubview(daytimeIdleField)
         daytimeIdleRow.addArrangedSubview(NSTextField(labelWithString: "min (outside the arm window)"))
         stack.addArrangedSubview(daytimeIdleRow)
@@ -332,6 +337,12 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         updateRow.addArrangedSubview(autoUpdateCheckbox)
         updateRow.addArrangedSubview(checkNowButton)
         stack.addArrangedSubview(updateRow)
+        autoDownloadCheckbox = NSButton(checkboxWithTitle: "Download updates automatically",
+                                        target: self, action: #selector(controlChanged))
+        stack.addArrangedSubview(autoDownloadCheckbox)
+        autoInstallCheckbox = NSButton(checkboxWithTitle: "Install updates automatically",
+                                       target: self, action: #selector(controlChanged))
+        stack.addArrangedSubview(autoInstallCheckbox)
         let versionLabel = NSTextField(labelWithString: "Installed: v\(banshellVersion)")
         versionLabel.font = NSFont.systemFont(ofSize: 11)
         versionLabel.textColor = .secondaryLabelColor
@@ -422,6 +433,8 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         ownerEmailField.stringValue = config.ownerEmail ?? ""
         ownerMessageField.stringValue = config.ownerMessage ?? ""
         autoUpdateCheckbox.state = config.autoUpdateCheck != false ? .on : .off
+        autoDownloadCheckbox.state = config.autoDownloadOn ? .on : .off
+        autoInstallCheckbox.state = config.autoInstallOn ? .on : .off
         cameraCheckbox.state = config.cameraMotionOn ? .on : .off
         onChargerCheckbox.state = config.allowMotionOnCharger ? .on : .off
         onBatteryCheckbox.state = config.allowMotionOnBattery ? .on : .off
@@ -430,6 +443,7 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         lidClosedCheckbox.state = config.watchLidClosed ? .on : .off
         idleAutoArmCheckbox.state = config.idleAutoArmOn ? .on : .off
         idleMinutesField.stringValue = "\(config.idleArmMinutes)"
+        daytimeIdleCheckbox.state = config.idleAutoArmDaytimeOn ? .on : .off
         daytimeIdleField.stringValue = "\(config.daytimeIdleArmMinutes)"
         wifiCheckbox.state = config.wifiTriggerOn ? .on : .off
         micCheckbox.state = config.micTriggerOn ? .on : .off
@@ -520,12 +534,15 @@ final class SettingsWindowController: NSObject, NSWindowDelegate, NSTextFieldDel
         config.exitDelaySeconds = exitChoices[max(0, exitDelayPopup.indexOfSelectedItem)]
         config.entryDelaySeconds = entryChoices[max(0, entryDelayPopup.indexOfSelectedItem)]
         config.autoUpdateCheck = autoUpdateCheckbox.state == .on
+        config.autoDownload = autoDownloadCheckbox.state == .on
+        config.autoInstall = autoInstallCheckbox.state == .on
         config.cameraMotion = cameraCheckbox.state == .on
         config.motionOnCharger = onChargerCheckbox.state == .on
         config.motionOnBattery = onBatteryCheckbox.state == .on
         config.motionBatteryFloor = Int(batteryFloorSlider.doubleValue)
         config.watchWhenLidClosed = lidClosedCheckbox.state == .on
         config.idleAutoArm = idleAutoArmCheckbox.state == .on
+        config.idleAutoArmDaytime = daytimeIdleCheckbox.state == .on
         config.wifiTrigger = wifiCheckbox.state == .on
         config.micTrigger = micCheckbox.state == .on
         batteryFloorLabel.stringValue = "\(Int(batteryFloorSlider.doubleValue))%"

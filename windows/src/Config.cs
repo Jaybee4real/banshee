@@ -21,6 +21,8 @@ public class BanshellConfig
     public string OwnerEmail { get; set; } = "";
     public string OwnerMessage { get; set; } = "";
     public bool AutoUpdateCheck { get; set; } = true;
+    public bool AutoDownload { get; set; } = true;
+    public bool AutoInstall { get; set; } = true;
     public bool MotionOnCharger { get; set; } = true;
     public bool MotionOnBattery { get; set; } = false;
     public int MotionBatteryFloor { get; set; } = 20;
@@ -29,6 +31,7 @@ public class BanshellConfig
     public int DisarmMinute { get; set; } = 0;
     public int[] ScheduleDays { get; set; } = { 0, 1, 2, 3, 4, 5, 6 };
     public bool IdleAutoArm { get; set; } = false;
+    public bool IdleAutoArmDaytime { get; set; } = false;
     public int IdleMinutes { get; set; } = 10;
     public int IdleMinutesDaytime { get; set; } = 30;
     public bool WifiTrigger { get; set; } = false;

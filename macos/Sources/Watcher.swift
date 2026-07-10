@@ -227,7 +227,7 @@ final class Watcher {
     }
 
     private func checkAutoArm() {
-        guard config.autoArmDaily || config.autoDisarmOn || config.idleAutoArmOn else { return }
+        guard config.autoArmDaily || config.autoDisarmOn || config.idleAutoArmOn || config.idleAutoArmDaytimeOn else { return }
         let formatter = DateFormatter()
         formatter.dateFormat = "yyyy-MM-dd"
         let today = formatter.string(from: Date())
@@ -247,13 +247,14 @@ final class Watcher {
             applyDisarm()
             logLine("auto-disarmed on schedule (\(config.disarmH):\(String(format: "%02d", config.disarmM)))")
         }
-        if config.idleAutoArmOn, !state.armed, !state.triggered {
+        if !state.armed, !state.triggered {
             let nowMinutes = (components.hour ?? 0) * 60 + (components.minute ?? 0)
             let armMinutes = config.armHour * 60 + config.armMinute
             let endMinutes = config.autoDisarmOn ? config.disarmH * 60 + config.disarmM : armMinutes
             let inWindow = config.autoArmDaily && timeInWindow(nowMinutes, armMinutes, endMinutes)
+            let enabled = inWindow ? config.idleAutoArmOn : config.idleAutoArmDaytimeOn
             let threshold = inWindow ? config.idleArmMinutes : config.daytimeIdleArmMinutes
-            if systemIdleSeconds() >= Double(threshold * 60) {
+            if enabled, systemIdleSeconds() >= Double(threshold * 60) {
                 applyArm()
                 logLine("idle auto-arm — no use for \(threshold)min (\(inWindow ? "in" : "outside") arm window)")
             }

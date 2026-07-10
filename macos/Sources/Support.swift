@@ -1,7 +1,7 @@
 import CryptoKit
 import Foundation
 
-let banshellVersion = "1.9.0"
+let banshellVersion = "1.10.0"
 let launchdLabel = "com.jaybee.banshell"
 
 struct Config: Codable {
@@ -20,6 +20,8 @@ struct Config: Codable {
     var ownerEmail: String?
     var ownerMessage: String?
     var autoUpdateCheck: Bool?
+    var autoDownload: Bool?
+    var autoInstall: Bool?
     var cameraMotion: Bool?
     var watchWhenLidClosed: Bool?
     var motionOnBattery: Bool?
@@ -30,6 +32,7 @@ struct Config: Codable {
     var disarmMinute: Int?
     var scheduleDays: [Int]?
     var idleAutoArm: Bool?
+    var idleAutoArmDaytime: Bool?
     var idleMinutes: Int?
     var idleMinutesDaytime: Int?
     var wifiTrigger: Bool?
@@ -42,6 +45,8 @@ struct Config: Codable {
     }
 
     var hasPin: Bool { !pinHashHex.isEmpty }
+    var autoDownloadOn: Bool { autoDownload != false }
+    var autoInstallOn: Bool { autoInstall != false }
     var cameraMotionOn: Bool { cameraMotion == true }
     var watchLidClosed: Bool { watchWhenLidClosed != false }
     var allowMotionOnBattery: Bool { motionOnBattery == true }
@@ -52,6 +57,7 @@ struct Config: Codable {
     var disarmM: Int { disarmMinute ?? 0 }
     var scheduledDays: Set<Int> { Set(scheduleDays ?? [1, 2, 3, 4, 5, 6, 7]) }
     var idleAutoArmOn: Bool { idleAutoArm == true }
+    var idleAutoArmDaytimeOn: Bool { idleAutoArmDaytime == true }
     var idleArmMinutes: Int { idleMinutes ?? 10 }
     var daytimeIdleArmMinutes: Int { idleMinutesDaytime ?? 30 }
     var wifiTriggerOn: Bool { wifiTrigger == true }

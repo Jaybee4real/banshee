@@ -36,6 +36,30 @@ func versionIsNewer(_ candidate: String, than current: String) -> Bool {
 final class Updater {
     static let shared = Updater()
     private var checking = false
+    private var downloadingVersion: String?
+    private var readyRelease: ReleaseInfo?
+    private var readyInstaller: (url: URL, version: String)?
+    var onStatusChange: (() -> Void)?
+
+    var statusText: String? {
+        if let readyInstaller { return "Install v\(readyInstaller.version) & Restart" }
+        if let readyRelease { return "Download & Install v\(readyRelease.version)" }
+        if let downloadingVersion { return "Downloading v\(downloadingVersion)…" }
+        return nil
+    }
+
+    func actOnStatus() {
+        if let readyInstaller {
+            runInstaller(at: readyInstaller.url, version: readyInstaller.version)
+        } else if let release = readyRelease {
+            readyRelease = nil
+            downloadSilent(release, autoInstall: true)
+        }
+    }
+
+    private func notifyStatus() {
+        DispatchQueue.main.async { self.onStatusChange?() }
+    }
 
     func fetchLatest() -> UpdateOutcome {
         guard let url = URL(string: "https://api.github.com/repos/\(updateRepo)/releases/latest") else {
@@ -89,7 +113,7 @@ final class Updater {
                 case .upToDate:
                     if !silent { self.showInfo("You're up to date", "BANSHELL v\(banshellVersion) is the latest version.") }
                 case .available(let info):
-                    self.promptUpdate(info)
+                    if silent { self.handleSilentAvailable(info) } else { self.promptUpdate(info) }
                 case .failed(let message):
                     if silent {
                         logLine("update check failed: \(message)")
@@ -114,23 +138,25 @@ final class Updater {
         alert.addButton(withTitle: "Later")
         NSApp.activate(ignoringOtherApps: true)
         guard alert.runModal() == .alertFirstButtonReturn else { return }
-        downloadAndInstall(info)
+        downloadSilent(info, autoInstall: true)
     }
 
-    private func downloadAndInstall(_ info: ReleaseInfo) {
-        let progress = NSAlert()
-        progress.messageText = "Downloading v\(info.version)…"
-        progress.informativeText = "BANSHELL will restart to finish installing."
-        let indicator = NSProgressIndicator(frame: NSRect(x: 0, y: 0, width: 260, height: 20))
-        indicator.isIndeterminate = true
-        indicator.style = .bar
-        indicator.startAnimation(nil)
-        progress.accessoryView = indicator
-        progress.addButton(withTitle: "Cancel")
-        let progressWindow = progress.window
-        NSApp.activate(ignoringOtherApps: true)
-        progressWindow.makeKeyAndOrderFront(nil)
+    private func handleSilentAvailable(_ info: ReleaseInfo) {
+        let config = loadConfig() ?? Config.defaults
+        guard config.autoDownloadOn else {
+            readyRelease = info
+            notifyStatus()
+            logLine("update v\(info.version) available — download off, waiting for user")
+            return
+        }
+        downloadSilent(info, autoInstall: config.autoInstallOn)
+    }
 
+    private func downloadSilent(_ info: ReleaseInfo, autoInstall: Bool) {
+        downloadingVersion = info.version
+        readyRelease = nil
+        readyInstaller = nil
+        notifyStatus()
         DispatchQueue.global(qos: .userInitiated).async {
             let destination = FileManager.default.temporaryDirectory
                 .appendingPathComponent("Banshell-\(info.version).pkg")
@@ -150,12 +176,19 @@ final class Updater {
             semaphore.wait()
 
             DispatchQueue.main.async {
-                progressWindow.orderOut(nil)
+                self.downloadingVersion = nil
                 if let downloadError {
-                    self.showInfo("Update failed", downloadError)
+                    logLine("update download failed: \(downloadError)")
+                    self.notifyStatus()
                     return
                 }
-                self.runInstaller(at: destination, version: info.version)
+                if autoInstall {
+                    self.runInstaller(at: destination, version: info.version)
+                } else {
+                    self.readyInstaller = (destination, info.version)
+                    logLine("update v\(info.version) downloaded — install off, waiting for user")
+                    self.notifyStatus()
+                }
             }
         }
     }

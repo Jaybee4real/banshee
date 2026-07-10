@@ -9,6 +9,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var readinessMenuItem: NSMenuItem?
     private var armMenuItem: NSMenuItem?
     private var disarmMenuItem: NSMenuItem?
+    private var updateStatusMenuItem: NSMenuItem?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         NSApp.setActivationPolicy(.accessory)
@@ -32,6 +33,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     private func scheduleUpdateChecks() {
+        Updater.shared.onStatusChange = { [weak self] in self?.refreshUpdateStatus() }
         guard loadConfig()?.autoUpdateCheck != false else { return }
         DispatchQueue.main.asyncAfter(deadline: .now() + 8) {
             Updater.shared.checkForUpdates(silent: true)
@@ -41,6 +43,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
                 Updater.shared.checkForUpdates(silent: true)
             }
         }
+    }
+
+    private func refreshUpdateStatus() {
+        let text = Updater.shared.statusText
+        updateStatusMenuItem?.title = text ?? ""
+        updateStatusMenuItem?.isHidden = text == nil
+        let downloading = text?.hasPrefix("Downloading") ?? false
+        updateStatusMenuItem?.isEnabled = !downloading
+    }
+
+    @objc private func updateStatusTapped() {
+        Updater.shared.actOnStatus()
     }
 
     private func buildStatusItem() {
@@ -84,6 +98,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         let logItem = NSMenuItem(title: "View Log", action: #selector(viewLog), keyEquivalent: "")
         logItem.target = self
         menu.addItem(logItem)
+
+        let updateStatus = NSMenuItem(title: "", action: #selector(updateStatusTapped), keyEquivalent: "")
+        updateStatus.target = self
+        updateStatus.isHidden = true
+        menu.addItem(updateStatus)
+        updateStatusMenuItem = updateStatus
 
         let updateItem = NSMenuItem(title: "Check for Updates…", action: #selector(checkForUpdates), keyEquivalent: "")
         updateItem.target = self

@@ -19,6 +19,7 @@ public class TrayApp : ApplicationContext
     private readonly ToolStripMenuItem statusItem;
     private readonly ToolStripMenuItem armItem;
     private readonly ToolStripMenuItem disarmItem;
+    private readonly ToolStripMenuItem updateStatusItem;
     private SettingsForm? settingsForm;
     private AlarmForm? alarmForm;
 
@@ -33,6 +34,7 @@ public class TrayApp : ApplicationContext
         armItem = new ToolStripMenuItem("Arm Now", null, (_, _) => watcher.Arm());
         disarmItem = new ToolStripMenuItem("Disarm…", null, (_, _) => DisarmWithPin());
 
+        updateStatusItem = new ToolStripMenuItem("", null, (_, _) => Updater.ActOnStatus()) { Visible = false };
         var menu = new ContextMenuStrip();
         menu.Items.Add(statusItem);
         menu.Items.Add(new ToolStripSeparator());
@@ -41,9 +43,11 @@ public class TrayApp : ApplicationContext
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem("Settings…", null, (_, _) => ShowSettings()));
         menu.Items.Add(new ToolStripMenuItem("Test Siren (Drill)…", null, (_, _) => Drill()));
+        menu.Items.Add(updateStatusItem);
         menu.Items.Add(new ToolStripMenuItem("Check for Updates…", null, async (_, _) => await Updater.CheckAsync(false)));
         menu.Items.Add(new ToolStripSeparator());
         menu.Items.Add(new ToolStripMenuItem("Quit BANSHELL", null, (_, _) => Quit()));
+        Updater.StatusChanged += RefreshUpdateStatus;
 
         trayIcon = new NotifyIcon
         {
@@ -101,6 +105,14 @@ public class TrayApp : ApplicationContext
         armItem.Visible = !watcher.Armed;
         disarmItem.Visible = watcher.Armed;
         trayIcon.Text = statusItem.Text.Length <= 63 ? statusItem.Text : statusItem.Text[..63];
+    }
+
+    private void RefreshUpdateStatus()
+    {
+        var text = Updater.StatusText;
+        updateStatusItem.Text = text ?? "";
+        updateStatusItem.Visible = text != null;
+        updateStatusItem.Enabled = !(text?.StartsWith("Downloading") ?? false);
     }
 
     private void ShowAlarm(string reason)

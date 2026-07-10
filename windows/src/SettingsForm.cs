@@ -14,6 +14,7 @@ public class SettingsForm : Form
     private readonly CheckBox idleAutoArmBox;
     private readonly NumericUpDown idleMinutesBox;
     private readonly NumericUpDown daytimeIdleBox;
+    private readonly CheckBox daytimeIdleBox2;
     private readonly CheckBox wifiBox;
     private readonly CheckBox micBox;
     private readonly CheckBox motionBox;
@@ -29,6 +30,8 @@ public class SettingsForm : Form
     private readonly TextBox ownerEmailBox;
     private readonly TextBox ownerMessageBox;
     private readonly CheckBox autoUpdateBox;
+    private readonly CheckBox autoDownloadBox;
+    private readonly CheckBox autoInstallBox;
     private readonly CheckBox motionOnChargerBox;
     private readonly CheckBox motionOnBatteryBox;
     private readonly TrackBar batteryFloorBar;
@@ -119,8 +122,11 @@ public class SettingsForm : Form
         layout.Controls.Add(idleRow);
 
         var daytimeIdleRow = Row();
+        daytimeIdleBox2 = new CheckBox { Text = "Arm after no use for", AutoSize = true, Padding = new Padding(0, 4, 0, 0) };
+        daytimeIdleBox2.CheckedChanged += (_, _) => SaveFromControls();
         daytimeIdleBox = new NumericUpDown { Minimum = 1, Maximum = 240, Value = 30, Width = 60 };
         daytimeIdleBox.ValueChanged += (_, _) => SaveFromControls();
+        daytimeIdleRow.Controls.Add(daytimeIdleBox2);
         daytimeIdleRow.Controls.Add(daytimeIdleBox);
         daytimeIdleRow.Controls.Add(new Label { Text = "min (outside the arm window)", AutoSize = true, Padding = new Padding(0, 6, 0, 0) });
         layout.Controls.Add(daytimeIdleRow);
@@ -220,6 +226,12 @@ public class SettingsForm : Form
         autoUpdateBox = new CheckBox { Text = "Automatically check for updates", AutoSize = true };
         autoUpdateBox.CheckedChanged += (_, _) => SaveFromControls();
         layout.Controls.Add(autoUpdateBox);
+        autoDownloadBox = new CheckBox { Text = "Download updates automatically", AutoSize = true };
+        autoDownloadBox.CheckedChanged += (_, _) => SaveFromControls();
+        layout.Controls.Add(autoDownloadBox);
+        autoInstallBox = new CheckBox { Text = "Install updates automatically", AutoSize = true };
+        autoInstallBox.CheckedChanged += (_, _) => SaveFromControls();
+        layout.Controls.Add(autoInstallBox);
         var updateRow = Row();
         var checkNowButton = new Button { Text = "Check Now", AutoSize = true };
         checkNowButton.Click += async (_, _) => await Updater.CheckAsync(false);
@@ -277,6 +289,7 @@ public class SettingsForm : Form
             dayButtons[index].Checked = config.ScheduleDays.Contains(index);
         idleAutoArmBox.Checked = config.IdleAutoArm;
         idleMinutesBox.Value = Math.Clamp(config.IdleMinutes, (int)idleMinutesBox.Minimum, (int)idleMinutesBox.Maximum);
+        daytimeIdleBox2.Checked = config.IdleAutoArmDaytime;
         daytimeIdleBox.Value = Math.Clamp(config.IdleMinutesDaytime, (int)daytimeIdleBox.Minimum, (int)daytimeIdleBox.Maximum);
         wifiBox.Checked = config.WifiTrigger;
         micBox.Checked = config.MicTrigger;
@@ -291,6 +304,8 @@ public class SettingsForm : Form
         ownerEmailBox.Text = config.OwnerEmail;
         ownerMessageBox.Text = config.OwnerMessage;
         autoUpdateBox.Checked = config.AutoUpdateCheck;
+        autoDownloadBox.Checked = config.AutoDownload;
+        autoInstallBox.Checked = config.AutoInstall;
         motionOnChargerBox.Checked = config.MotionOnCharger;
         motionOnBatteryBox.Checked = config.MotionOnBattery;
         batteryFloorBar.Value = Math.Clamp(config.MotionBatteryFloor, batteryFloorBar.Minimum, batteryFloorBar.Maximum);
@@ -312,6 +327,7 @@ public class SettingsForm : Form
         config.ScheduleDays = selectedDays.Length == 0 ? new[] { 0, 1, 2, 3, 4, 5, 6 } : selectedDays;
         config.IdleAutoArm = idleAutoArmBox.Checked;
         config.IdleMinutes = (int)idleMinutesBox.Value;
+        config.IdleAutoArmDaytime = daytimeIdleBox2.Checked;
         config.IdleMinutesDaytime = (int)daytimeIdleBox.Value;
         config.WifiTrigger = wifiBox.Checked;
         config.MicTrigger = micBox.Checked;
@@ -326,6 +342,8 @@ public class SettingsForm : Form
         config.OwnerEmail = ownerEmailBox.Text;
         config.OwnerMessage = ownerMessageBox.Text;
         config.AutoUpdateCheck = autoUpdateBox.Checked;
+        config.AutoDownload = autoDownloadBox.Checked;
+        config.AutoInstall = autoInstallBox.Checked;
         config.MotionOnCharger = motionOnChargerBox.Checked;
         config.MotionOnBattery = motionOnBatteryBox.Checked;
         config.MotionBatteryFloor = batteryFloorBar.Value;

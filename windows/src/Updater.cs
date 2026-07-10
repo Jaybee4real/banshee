@@ -90,11 +90,23 @@ public static class Updater
                 if (!silent) MessageBox.Show($"BANSHELL is up to date (v{CurrentVersion}).", "BANSHELL");
                 return;
             }
+            var config = BanshellConfig.Load();
+            if (silent)
+            {
+                if (!config.AutoDownload)
+                {
+                    readyRelease = info;
+                    StatusChanged?.Invoke();
+                    return;
+                }
+                await DownloadSilent(info, config.AutoInstall);
+                return;
+            }
             var notesPreview = string.IsNullOrWhiteSpace(info.Notes) ? "" : "\n\nWhat's new:\n" + Truncate(info.Notes, 500);
             var choice = MessageBox.Show(
                 $"Update available: v{CurrentVersion} → v{info.Version}\n\nDownload and install now? BANSHELL will restart.{notesPreview}",
                 "BANSHELL Update", MessageBoxButtons.YesNo, MessageBoxIcon.Information);
-            if (choice == DialogResult.Yes) await DownloadAndRunAsync(info);
+            if (choice == DialogResult.Yes) await DownloadSilent(info, true);
         }
         finally
         {
@@ -102,25 +114,67 @@ public static class Updater
         }
     }
 
-    private static async Task DownloadAndRunAsync(ReleaseInfo info)
+    private static string? downloadingVersion;
+    private static ReleaseInfo? readyRelease;
+    private static (string Path, string Version)? readyInstaller;
+
+    public static event Action? StatusChanged;
+
+    public static string? StatusText =>
+        readyInstaller is { } ready ? $"Install v{ready.Version} & Restart"
+        : readyRelease is { } release ? $"Download & Install v{release.Version}"
+        : downloadingVersion is { } version ? $"Downloading v{version}…"
+        : null;
+
+    public static async void ActOnStatus()
+    {
+        if (readyInstaller is { } ready)
+        {
+            RunInstaller(ready.Path);
+        }
+        else if (readyRelease is { } release)
+        {
+            readyRelease = null;
+            await DownloadSilent(release, true);
+        }
+    }
+
+    private static async Task DownloadSilent(ReleaseInfo info, bool autoInstall)
     {
         var target = Path.Combine(Path.GetTempPath(), $"Banshell-Setup-{info.Version}.exe");
+        downloadingVersion = info.Version;
+        readyRelease = null;
+        readyInstaller = null;
+        StatusChanged?.Invoke();
         try
         {
-            using (var client = new HttpClient())
-            {
-                client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("BANSHELL-Updater", "1.0"));
-                client.Timeout = TimeSpan.FromMinutes(5);
-                var bytes = await client.GetByteArrayAsync(info.AssetUrl);
-                await File.WriteAllBytesAsync(target, bytes);
-            }
+            using var client = new HttpClient();
+            client.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("BANSHELL-Updater", "1.0"));
+            client.Timeout = TimeSpan.FromMinutes(5);
+            var bytes = await client.GetByteArrayAsync(info.AssetUrl);
+            await File.WriteAllBytesAsync(target, bytes);
         }
-        catch (Exception error)
+        catch
         {
-            MessageBox.Show($"Update download failed: {error.Message}", "BANSHELL");
+            downloadingVersion = null;
+            StatusChanged?.Invoke();
             return;
         }
-        Process.Start(new ProcessStartInfo(target, "/SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS")
+        downloadingVersion = null;
+        if (autoInstall)
+        {
+            RunInstaller(target);
+        }
+        else
+        {
+            readyInstaller = (target, info.Version);
+            StatusChanged?.Invoke();
+        }
+    }
+
+    private static void RunInstaller(string setupPath)
+    {
+        Process.Start(new ProcessStartInfo(setupPath, "/SILENT /CLOSEAPPLICATIONS /RESTARTAPPLICATIONS")
         {
             UseShellExecute = true,
         });
